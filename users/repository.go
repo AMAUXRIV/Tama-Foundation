@@ -5,6 +5,7 @@ import "gorm.io/gorm"
 type Repository interface {
 	Save(users Users) (Users, error)
 	FindByEmail(email string) (Users, error)
+	
 }
 
 type repository struct {
