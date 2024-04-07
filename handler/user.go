@@ -1,7 +1,9 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
+	"tama_foundation/auth"
 	"tama_foundation/helper"
 	"tama_foundation/users"
 
@@ -10,10 +12,11 @@ import (
 
 type userHandler struct {
 	userService users.Service
+	authService auth.Service
 }
 
-func NewUserHandlerService(userService users.Service) *userHandler {
-	return &userHandler{userService}
+func NewUserHandlerService(userService users.Service, authService auth.Service) *userHandler {
+	return &userHandler{userService, authService}
 }
 
 func (h *userHandler) RegisterUser(c *gin.Context) {
@@ -46,8 +49,15 @@ func (h *userHandler) RegisterUser(c *gin.Context) {
 		return
 
 	}
+	token, err := h.authService.GenerateToken(newUser.ID)
+	if err != nil {
+		response := helper.APIResponse("Register Account Failed ", http.StatusBadRequest, "error", nil)
 
-	formaterr := users.FormatUser(newUser, "token")
+		c.JSON(http.StatusBadRequest, response)
+		return
+
+	}
+	formaterr := users.FormatUser(newUser, token)
 
 	response := helper.APIResponse("Account has been Registered", http.StatusOK, "success", formaterr)
 	c.JSON(http.StatusOK, response)
@@ -78,7 +88,15 @@ func (h *userHandler) Login(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, response)
 		return
 	}
-	formaterr := users.FormatUser(loggedInUser, "token")
+
+	token, err := h.authService.GenerateToken(loggedInUser.ID)
+	if err != nil {
+		errorMessage := gin.H{"errors": err.Error()}
+		response := helper.APIResponse("Login Failed ", http.StatusBadRequest, "error", errorMessage)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+	formaterr := users.FormatUser(loggedInUser, token)
 	response := helper.APIResponse("Successfuly Logged In", http.StatusOK, "success", formaterr)
 	c.JSON(http.StatusOK, response)
 
@@ -125,7 +143,9 @@ func (h *userHandler) UploadAvatars(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, response)
 		return
 	}
-	path := "images/" + file.Filename
+	userID := 5
+
+	path := fmt.Sprintf("images/%d-%s", userID, file.Filename)
 	err = c.SaveUploadedFile(file, path)
 	if err != nil {
 		data := gin.H{
@@ -135,7 +155,6 @@ func (h *userHandler) UploadAvatars(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, response)
 		return
 	}
-	userID := 1
 	_, err = h.userService.SaveAvatar(userID, path)
 	if err != nil {
 		data := gin.H{

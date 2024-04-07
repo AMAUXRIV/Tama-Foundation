@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"tama_foundation/auth"
 	"tama_foundation/handler"
 	"tama_foundation/users"
 
@@ -20,7 +21,9 @@ func main() {
 
 	userRepository := users.NewRepository(db)
 	userService := users.NewService(userRepository)
-	userHandler := handler.NewUserHandlerService(userService)
+	authService := auth.NewService()
+	userHandler := handler.NewUserHandlerService(userService, authService)
+
 	userService.SaveAvatar(5, "images/avatar-5.png")
 	router := gin.Default()
 
@@ -29,5 +32,6 @@ func main() {
 	api.POST("/session", userHandler.Login)
 	api.POST("/email_checkers", userHandler.CheckEmailAvailable)
 	api.POST("/avatars", userHandler.UploadAvatars)
+
 	router.Run("localhost:5000")
 }
